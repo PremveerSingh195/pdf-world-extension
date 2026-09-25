@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { WorkflowNode, WorkflowOperationType, WorkflowPreset } from '@/types/workflow';
 import { workflowService } from '@/services/workflow/workflowService';
 import { downloadService } from '@/services/download/downloadService';
@@ -128,6 +128,77 @@ export const WorkflowBuilder: React.FC = () => {
   const [resultBytes, setResultBytes] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [workflowName, setWorkflowName] = useState('My Custom Workflow');
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const scrollToWorkflowBottom = (immediate = false) => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = null;
+    }
+
+    const performScroll = () => {
+      // 1. Try to target the ready download card first
+      const readyCard = document.getElementById('workflow-ready-download');
+      if (readyCard) {
+        readyCard.scrollIntoView({ behavior: immediate ? 'auto' : 'smooth', block: 'center' });
+        return;
+      }
+
+      // 2. Try progress view
+      const progressCard = document.getElementById('workflow-progress');
+      if (progressCard) {
+        progressCard.scrollIntoView({ behavior: immediate ? 'auto' : 'smooth', block: 'center' });
+        return;
+      }
+
+      // 3. Fallback to bottomRef or main scroll
+      if (bottomRef.current) {
+        bottomRef.current.scrollIntoView({ behavior: immediate ? 'auto' : 'smooth', block: 'end' });
+        return;
+      }
+
+      const mainEl = document.querySelector('main');
+      if (mainEl) {
+        mainEl.scrollTo({
+          top: mainEl.scrollHeight,
+          behavior: immediate ? 'auto' : 'smooth',
+        });
+      }
+    };
+
+    if (immediate) {
+      performScroll();
+    } else {
+      scrollTimeoutRef.current = setTimeout(performScroll, 80);
+    }
+  };
+
+  useEffect(() => {
+    if (processing) {
+      scrollToWorkflowBottom(false);
+    }
+  }, [processing]);
+
+  useEffect(() => {
+    if (resultBytes && !processing) {
+      scrollToWorkflowBottom(false);
+      // Failsafe: if smooth scroll was interrupted, ensure it centers in viewport
+      const timer = setTimeout(() => {
+        const readyCard = document.getElementById('workflow-ready-download');
+        if (readyCard) {
+          readyCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [resultBytes, processing]);
+
+  useEffect(() => {
+    if (error) {
+      scrollToWorkflowBottom(false);
+    }
+  }, [error]);
 
   // Filter out operations that are already in use in the pipeline
   const usedOperationTypes = new Set(nodes.map((n) => n.type));
@@ -180,8 +251,11 @@ export const WorkflowBuilder: React.FC = () => {
       return;
     }
     setError(null);
+    setResultBytes(null);
     setProcessing(true);
     setProgress(0);
+    // Smoothly scroll down immediately so user sees pipeline start
+    scrollToWorkflowBottom(false);
 
     try {
       const buffer = await pdfFile.arrayBuffer();
@@ -198,6 +272,43 @@ export const WorkflowBuilder: React.FC = () => {
       setError(err?.message || 'Workflow execution failed. Check node configurations.');
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const handleLoadSamplePdf = async () => {
+    try {
+      const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+      const doc = await PDFDocument.create();
+      const font = await doc.embedFont(StandardFonts.HelveticaBold);
+      const regularFont = await doc.embedFont(StandardFonts.Helvetica);
+      const page = doc.addPage([600, 400]);
+      page.drawText('Workflow Test Document', {
+        x: 50,
+        y: 340,
+        size: 20,
+        font,
+        color: rgb(0.1, 0.2, 0.4),
+      });
+      page.drawText('This sample PDF is ready to be processed by your workflow pipeline.', {
+        x: 50,
+        y: 300,
+        size: 12,
+        font: regularFont,
+        color: rgb(0.3, 0.3, 0.3),
+      });
+      page.drawText('Click "Run Workflow Pipeline" below to test the automated flow.', {
+        x: 50,
+        y: 275,
+        size: 11,
+        font: regularFont,
+        color: rgb(0.4, 0.4, 0.4),
+      });
+      const pdfBytes = await doc.save();
+      const file = new File([pdfBytes as any], 'Sample_Workflow_Document.pdf', { type: 'application/pdf' });
+      setPdfFile(file);
+      setError(null);
+    } catch (e: any) {
+      setError('Could not generate sample PDF: ' + e?.message);
     }
   };
 
@@ -255,12 +366,23 @@ export const WorkflowBuilder: React.FC = () => {
 
       {/* Step 1: Input Document */}
       <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-          <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] flex items-center justify-center font-mono">
-            1
-          </span>
-          Select Source PDF Document
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] flex items-center justify-center font-mono">
+              1
+            </span>
+            Select Source PDF Document
+          </h3>
+          {!pdfFile && (
+            <button
+              type="button"
+              onClick={handleLoadSamplePdf}
+              className="text-xs text-brand-600 dark:text-brand-400 hover:underline font-semibold cursor-pointer"
+            >
+              Use Sample PDF
+            </button>
+          )}
+        </div>
 
         {!pdfFile ? (
           <FileDropzone
@@ -638,40 +760,79 @@ export const WorkflowBuilder: React.FC = () => {
       </div>
 
       {/* Action Bar */}
-      <div className="flex justify-end gap-3 pt-2">
-        <Button
-          size="lg"
-          variant="primary"
-          icon={<Play className="w-4 h-4 fill-white" />}
-          loading={processing}
-          disabled={!pdfFile || nodes.filter((n) => n.enabled).length === 0}
-          onClick={handleRunWorkflow}
-        >
-          Run Workflow Pipeline
-        </Button>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+        {resultBytes && !processing ? (
+          <div className="flex items-center gap-2 p-2 px-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-800 rounded-xl text-emerald-800 dark:text-emerald-300 text-xs font-semibold animate-fade-in shadow-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Workflow Complete! PDF Ready to Download Below</span>
+          </div>
+        ) : (
+          <div />
+        )}
+
+        <div className="flex items-center gap-3 justify-end">
+          {resultBytes && !processing && (
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              icon={<ArrowDown className="w-4 h-4" />}
+              onClick={() => {
+                const el = document.getElementById('workflow-ready-download');
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+            >
+              Ready to Download ↓
+            </Button>
+          )}
+
+          <Button
+            size="lg"
+            variant="primary"
+            icon={<Play className="w-4 h-4 fill-white" />}
+            loading={processing}
+            disabled={!pdfFile || nodes.filter((n) => n.enabled).length === 0}
+            onClick={handleRunWorkflow}
+          >
+            {resultBytes ? 'Re-run Workflow Pipeline' : 'Run Workflow Pipeline'}
+          </Button>
+        </div>
       </div>
 
       {/* Progress View */}
-      {processing && <ProcessingProgress progress={progress} statusText={statusText} />}
+      {processing && (
+        <div id="workflow-progress">
+          <ProcessingProgress progress={progress} statusText={statusText} />
+        </div>
+      )}
 
       {/* Error View */}
-      {error && <ErrorState message={error} onRetry={handleRunWorkflow} />}
+      {error && (
+        <div id="workflow-error">
+          <ErrorState message={error} onRetry={handleRunWorkflow} />
+        </div>
+      )}
 
       {/* Success & Download */}
       {resultBytes && !processing && (
-        <DownloadButton
-          filename={`Workflow_${pdfFile?.name || 'Output.pdf'}`}
-          fileSize={resultBytes.byteLength}
-          onDownload={() => {
-            const blob = new Blob([resultBytes as any], { type: 'application/pdf' });
-            downloadService.downloadBlob(blob, `Workflow_${pdfFile?.name || 'Output.pdf'}`);
-          }}
-          onReset={() => {
-            setResultBytes(null);
-            setProgress(0);
-          }}
-        />
+        <div id="workflow-ready-download" className="animate-fade-in">
+          <DownloadButton
+            filename={`Workflow_${pdfFile?.name || 'Output.pdf'}`}
+            fileSize={resultBytes.byteLength}
+            onDownload={() => {
+              const blob = new Blob([resultBytes as any], { type: 'application/pdf' });
+              downloadService.downloadBlob(blob, `Workflow_${pdfFile?.name || 'Output.pdf'}`);
+            }}
+            onReset={() => {
+              setResultBytes(null);
+              setProgress(0);
+            }}
+          />
+        </div>
       )}
+
+      {/* Bottom scroll anchor */}
+      <div ref={bottomRef} className="h-6" />
     </div>
   );
 };
