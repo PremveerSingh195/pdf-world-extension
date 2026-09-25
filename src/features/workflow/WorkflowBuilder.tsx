@@ -33,63 +33,63 @@ const AVAILABLE_OPERATIONS: Array<{
   defaultConfig: Record<string, any>;
   icon: any;
 }> = [
-  {
-    type: 'watermark',
-    title: 'Add Watermark',
-    desc: 'Apply custom text watermark with angle & opacity',
-    defaultConfig: { text: 'CONFIDENTIAL', opacity: '0.25', rotation: '45', color: '#ef4444', fontSize: '48' },
-    icon: Stamp,
-  },
-  {
-    type: 'pageNumbers',
-    title: 'Add Page Numbers',
-    desc: 'Position numbers at bottom or top',
-    defaultConfig: { position: 'bottom-right', format: 'page_n_of_total', fontSize: '10' },
-    icon: Binary,
-  },
-  {
-    type: 'rotate',
-    title: 'Rotate Pages',
-    desc: 'Rotate clockwise by 90°, 180°, or 270°',
-    defaultConfig: { degrees: '90', pages: '' },
-    icon: RotateCw,
-  },
-  {
-    type: 'compress',
-    title: 'Compress PDF',
-    desc: 'Optimize file size with stream compression',
-    defaultConfig: { level: 'medium' },
-    icon: Minimize2,
-  },
-  {
-    type: 'removePages',
-    title: 'Remove Pages',
-    desc: 'Strip specific page numbers or ranges (e.g. 1, 3-5)',
-    defaultConfig: { pages: '1' },
-    icon: Trash2,
-  },
-  {
-    type: 'flatten',
-    title: 'Flatten Annotations',
-    desc: 'Bake form fields and layers into fixed page content',
-    defaultConfig: {},
-    icon: FileCheck,
-  },
-  {
-    type: 'crop',
-    title: 'Trim Margins',
-    desc: 'Crop outer borders from all pages',
-    defaultConfig: { margin: '20' },
-    icon: Crop,
-  },
-  {
-    type: 'metadata',
-    title: 'Update Metadata',
-    desc: 'Clean and set Title & Author tags',
-    defaultConfig: { title: 'Optimized Document', author: 'PDF Toolbox' },
-    icon: Info,
-  },
-];
+    {
+      type: 'watermark',
+      title: 'Add Watermark',
+      desc: 'Apply custom text watermark with angle & opacity',
+      defaultConfig: { text: 'CONFIDENTIAL', opacity: '0.25', rotation: '45', color: '#ef4444', fontSize: '48', repeat: 'false', repeatSpacing: '150', position: 'center', fontFamily: 'helvetica-bold' },
+      icon: Stamp,
+    },
+    {
+      type: 'pageNumbers',
+      title: 'Add Page Numbers',
+      desc: 'Position numbers at bottom or top',
+      defaultConfig: { position: 'bottom-right', format: 'page_n_of_total', fontSize: '10' },
+      icon: Binary,
+    },
+    {
+      type: 'rotate',
+      title: 'Rotate Pages',
+      desc: 'Rotate clockwise by 90°, 180°, or 270°',
+      defaultConfig: { degrees: '90', pages: '' },
+      icon: RotateCw,
+    },
+    {
+      type: 'compress',
+      title: 'Compress PDF',
+      desc: 'Optimize file size with stream compression',
+      defaultConfig: { level: 'medium' },
+      icon: Minimize2,
+    },
+    {
+      type: 'removePages',
+      title: 'Remove Pages',
+      desc: 'Strip specific page numbers or ranges (e.g. 1, 3-5)',
+      defaultConfig: { pages: '1' },
+      icon: Trash2,
+    },
+    {
+      type: 'flatten',
+      title: 'Flatten Annotations',
+      desc: 'Bake form fields and layers into fixed page content',
+      defaultConfig: {},
+      icon: FileCheck,
+    },
+    {
+      type: 'crop',
+      title: 'Trim Margins',
+      desc: 'Crop outer borders from all pages',
+      defaultConfig: { margin: '20' },
+      icon: Crop,
+    },
+    {
+      type: 'metadata',
+      title: 'Update Metadata',
+      desc: 'Clean and set Title & Author tags',
+      defaultConfig: { title: 'Optimized Document', author: 'PDF Toolbox' },
+      icon: Info,
+    },
+  ];
 
 export const WorkflowBuilder: React.FC = () => {
   const { storage, saveWorkflow } = useChromeStorage();
@@ -323,11 +323,10 @@ export const WorkflowBuilder: React.FC = () => {
             return (
               <div
                 key={node.id}
-                className={`relative p-4 rounded-xl border transition-all ${
-                  node.enabled
+                className={`relative p-4 rounded-xl border transition-all ${node.enabled
                     ? 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700'
                     : 'bg-slate-100/50 dark:bg-slate-900/40 border-dashed border-slate-300 dark:border-slate-800 opacity-60'
-                }`}
+                  }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5">
@@ -385,7 +384,7 @@ export const WorkflowBuilder: React.FC = () => {
                       <>
                         <div>
                           <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
-                            Text
+                            Watermark Text
                           </label>
                           <input
                             type="text"
@@ -396,11 +395,44 @@ export const WorkflowBuilder: React.FC = () => {
                         </div>
                         <div>
                           <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                            Font Size ({node.config.fontSize || 48}px)
+                          </label>
+                          <input
+                            type="range"
+                            min="12"
+                            max="120"
+                            step="4"
+                            value={node.config.fontSize || 48}
+                            onChange={(e) => updateConfig(node.id, 'fontSize', e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                            Color
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={node.config.color || '#ef4444'}
+                              onChange={(e) => updateConfig(node.id, 'color', e.target.value)}
+                              className="w-8 h-8 rounded border border-slate-300 dark:border-slate-700 cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={node.config.color || '#ef4444'}
+                              onChange={(e) => updateConfig(node.id, 'color', e.target.value)}
+                              className="flex-1 text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 font-mono"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
                             Opacity ({node.config.opacity})
                           </label>
                           <input
                             type="range"
-                            min="0.1"
+                            min="0.05"
                             max="0.9"
                             step="0.05"
                             value={node.config.opacity || 0.3}
@@ -415,13 +447,75 @@ export const WorkflowBuilder: React.FC = () => {
                           <input
                             type="range"
                             min="0"
-                            max="90"
+                            max="360"
                             step="15"
                             value={node.config.rotation || 45}
                             onChange={(e) => updateConfig(node.id, 'rotation', e.target.value)}
                             className="w-full"
                           />
                         </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                            Font
+                          </label>
+                          <select
+                            value={node.config.fontFamily || 'helvetica-bold'}
+                            onChange={(e) => updateConfig(node.id, 'fontFamily', e.target.value)}
+                            className="w-full text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1"
+                          >
+                            <option value="helvetica-bold">Helvetica Bold</option>
+                            <option value="helvetica">Helvetica</option>
+                            <option value="courier">Courier</option>
+                            <option value="times-roman">Times Roman</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                            Position
+                          </label>
+                          <select
+                            value={node.config.position || 'center'}
+                            onChange={(e) => updateConfig(node.id, 'position', e.target.value)}
+                            className="w-full text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1"
+                          >
+                            <option value="center">Center</option>
+                            <option value="top-left">Top Left</option>
+                            <option value="top-center">Top Center</option>
+                            <option value="top-right">Top Right</option>
+                            <option value="bottom-left">Bottom Left</option>
+                            <option value="bottom-center">Bottom Center</option>
+                            <option value="bottom-right">Bottom Right</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                            Repeat / Tile
+                          </label>
+                          <select
+                            value={node.config.repeat || 'false'}
+                            onChange={(e) => updateConfig(node.id, 'repeat', e.target.value)}
+                            className="w-full text-xs rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1"
+                          >
+                            <option value="false">Single Watermark</option>
+                            <option value="true">Repeat Across Page</option>
+                          </select>
+                        </div>
+                        {(node.config.repeat === 'true' || node.config.repeat === true) && (
+                          <div>
+                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                              Tile Spacing ({node.config.repeatSpacing || 150}px)
+                            </label>
+                            <input
+                              type="range"
+                              min="50"
+                              max="400"
+                              step="25"
+                              value={node.config.repeatSpacing || 150}
+                              onChange={(e) => updateConfig(node.id, 'repeatSpacing', e.target.value)}
+                              className="w-full"
+                            />
+                          </div>
+                        )}
                       </>
                     )}
 

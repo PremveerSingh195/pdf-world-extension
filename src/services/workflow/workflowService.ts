@@ -67,6 +67,10 @@ export const workflowService = {
             rotation: parseInt(node.config.rotation ?? '45', 10),
             fontSize: parseInt(node.config.fontSize ?? '48', 10),
             color: node.config.color || '#ef4444',
+            repeat: node.config.repeat === 'true' || node.config.repeat === true,
+            repeatSpacing: parseInt(node.config.repeatSpacing ?? '150', 10),
+            position: node.config.position || 'center',
+            fontFamily: node.config.fontFamily || 'helvetica-bold',
           });
           currentBuffer = wm.buffer as ArrayBuffer;
           break;

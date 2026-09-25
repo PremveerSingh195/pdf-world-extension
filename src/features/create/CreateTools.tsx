@@ -247,7 +247,7 @@ export const WordToPDFView: React.FC = () => {
       ) : null}
 
       {processing && <ProcessingProgress progress={progress} statusText={statusText} />}
-      {error && <ErrorState message={error} />}
+      {error && <ErrorState message={error} onRetry={() => { setFile(null); setError(null); }} />}
       {outputBytes && !processing && (
         <DownloadButton
           filename={`${file?.name.replace(/\.[^/.]+$/, '') || 'Document'}.pdf`}
@@ -316,7 +316,7 @@ export const ExcelToPDFView: React.FC = () => {
       ) : null}
 
       {processing && <ProcessingProgress progress={progress} statusText={statusText} />}
-      {error && <ErrorState message={error} />}
+      {error && <ErrorState message={error} onRetry={() => { setFile(null); setError(null); }} />}
       {outputBytes && !processing && (
         <DownloadButton
           filename={`${file?.name.replace(/\.[^/.]+$/, '') || 'Spreadsheet'}.pdf`}
@@ -385,7 +385,7 @@ export const PPTToPDFView: React.FC = () => {
       ) : null}
 
       {processing && <ProcessingProgress progress={progress} statusText={statusText} />}
-      {error && <ErrorState message={error} />}
+      {error && <ErrorState message={error} onRetry={() => { setFile(null); setError(null); }} />}
       {outputBytes && !processing && (
         <DownloadButton
           filename={`${file?.name.replace(/\.[^/.]+$/, '') || 'Presentation'}.pdf`}
@@ -684,10 +684,31 @@ export const CSVToPDFView: React.FC = () => {
     'Employee ID,Name,Department,Salary,Status\n101,John Doe,Engineering,$120000,Active\n102,Jane Smith,Marketing,$105000,Active\n103,Robert Brown,Finance,$98000,Active\n104,Emily Davis,Operations,$112000,Active'
   );
   const [outputBytes, setOutputBytes] = useState<Uint8Array | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+    try {
+      const text = await files[0].text();
+      setCsvText(text);
+      setError(null);
+    } catch {
+      setError('Could not read CSV file.');
+    }
+  };
 
   const handleConvert = async () => {
-    const res = await sheetService.csvToPdf(csvText);
-    setOutputBytes(res);
+    setProcessing(true);
+    setError(null);
+    try {
+      const res = await sheetService.csvToPdf(csvText);
+      setOutputBytes(res);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to render CSV to PDF.');
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -698,26 +719,39 @@ export const CSVToPDFView: React.FC = () => {
           CSV to PDF
         </h2>
         <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Convert comma-separated tabular data directly into clean, formatted PDF reports.
+          Convert comma-separated tabular data or upload a CSV file to generate clean, formatted PDF reports.
         </p>
       </div>
 
+      <FileDropzone
+        acceptedFileTypes={['.csv']}
+        onFilesSelected={handleFileUpload}
+        title="Drop .csv file here or paste text below"
+      />
+
       <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
-        <textarea
-          rows={8}
-          value={csvText}
-          onChange={(e) => setCsvText(e.target.value)}
-          className="w-full font-mono text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 leading-relaxed"
-        />
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            CSV Data Content
+          </label>
+          <textarea
+            rows={8}
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+            className="w-full font-mono text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 p-3 leading-relaxed"
+          />
+        </div>
 
         <div className="flex justify-end">
-          <Button size="md" variant="primary" onClick={handleConvert}>
+          <Button size="md" variant="primary" onClick={handleConvert} loading={processing}>
             Render CSV to PDF
           </Button>
         </div>
       </div>
 
-      {outputBytes && (
+      {error && <ErrorState message={error} onRetry={() => setError(null)} />}
+
+      {outputBytes && !processing && (
         <DownloadButton
           filename="CSV_Report.pdf"
           fileSize={outputBytes.byteLength}

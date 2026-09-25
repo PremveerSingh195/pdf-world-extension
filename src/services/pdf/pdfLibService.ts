@@ -16,12 +16,18 @@ export const PAGE_SIZES: Record<string, [number, number]> = {
   Legal: [612.0, 1008.0],
 };
 
-function hexToRgb(hex: string) {
-  let c = hex.replace('#', '');
+function hexToRgb(hex?: string) {
+  if (!hex || typeof hex !== 'string') {
+    return { r: 0.94, g: 0.27, b: 0.27 };
+  }
+  let c = hex.replace('#', '').trim();
   if (c.length === 3) {
     c = c.split('').map((char) => char + char).join('');
   }
   const num = parseInt(c, 16);
+  if (isNaN(num)) {
+    return { r: 0.94, g: 0.27, b: 0.27 };
+  }
   return {
     r: ((num >> 16) & 255) / 255,
     g: ((num >> 8) & 255) / 255,
@@ -434,17 +440,32 @@ export const pdfLibService = {
       fontSize?: number;
       color?: string;
       pageNumbers?: number[];
+      repeat?: boolean;
+      repeatSpacing?: number;
+      position?: 'center' | 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
+      fontFamily?: 'helvetica-bold' | 'helvetica' | 'courier' | 'times-roman';
     }
   ): Promise<Uint8Array> {
     const doc = await PDFDocument.load(buffer, { ignoreEncryption: true });
     const pages = doc.getPages();
-    const font = await doc.embedFont(StandardFonts.HelveticaBold);
+
+    const fontMap: Record<string, typeof StandardFonts[keyof typeof StandardFonts]> = {
+      'helvetica-bold': StandardFonts.HelveticaBold,
+      'helvetica': StandardFonts.Helvetica,
+      'courier': StandardFonts.Courier,
+      'times-roman': StandardFonts.TimesRoman,
+    };
+    const selectedFont = fontMap[options.fontFamily || 'helvetica-bold'] || StandardFonts.HelveticaBold;
+    const font = await doc.embedFont(selectedFont);
 
     const opacity = options.opacity ?? 0.3;
     const rotation = options.rotation ?? 45;
     const fontSize = options.fontSize ?? 48;
     const colorHex = options.color ?? '#ef4444';
     const c = hexToRgb(colorHex);
+    const repeat = options.repeat ?? false;
+    const repeatSpacing = options.repeatSpacing ?? 150;
+    const position = options.position ?? 'center';
     const targetSet = options.pageNumbers?.length ? new Set(options.pageNumbers) : null;
 
     let embeddedImage: any = null;
@@ -476,15 +497,73 @@ export const pdfLibService = {
         } else if (options.text) {
           const textWidth = font.widthOfTextAtSize(options.text, fontSize);
           const textHeight = font.heightAtSize(fontSize);
-          page.drawText(options.text, {
-            x: (width - textWidth) / 2,
-            y: (height - textHeight) / 2,
-            size: fontSize,
-            font,
-            color: rgb(c.r, c.g, c.b),
-            opacity,
-            rotate: degrees(rotation),
-          });
+
+          if (repeat) {
+            // Tile watermark across the entire page with safe positive bounds
+            const spacingX = Math.max(30, (textWidth || 50) + (repeatSpacing || 150));
+            const spacingY = Math.max(30, fontSize + (repeatSpacing || 150));
+            // Start from outside the page to cover edges when rotated
+            for (let y = -height; y < height * 2; y += spacingY) {
+              for (let x = -width; x < width * 2; x += spacingX) {
+                page.drawText(options.text, {
+                  x,
+                  y,
+                  size: fontSize,
+                  font,
+                  color: rgb(c.r, c.g, c.b),
+                  opacity,
+                  rotate: degrees(rotation),
+                });
+              }
+            }
+          } else {
+            // Single watermark at specified position
+            let x: number;
+            let y: number;
+            const margin = 40;
+
+            switch (position) {
+              case 'top-left':
+                x = margin;
+                y = height - margin - textHeight;
+                break;
+              case 'top-center':
+                x = (width - textWidth) / 2;
+                y = height - margin - textHeight;
+                break;
+              case 'top-right':
+                x = width - textWidth - margin;
+                y = height - margin - textHeight;
+                break;
+              case 'bottom-left':
+                x = margin;
+                y = margin;
+                break;
+              case 'bottom-center':
+                x = (width - textWidth) / 2;
+                y = margin;
+                break;
+              case 'bottom-right':
+                x = width - textWidth - margin;
+                y = margin;
+                break;
+              case 'center':
+              default:
+                x = (width - textWidth) / 2;
+                y = (height - textHeight) / 2;
+                break;
+            }
+
+            page.drawText(options.text, {
+              x,
+              y,
+              size: fontSize,
+              font,
+              color: rgb(c.r, c.g, c.b),
+              opacity,
+              rotate: degrees(rotation),
+            });
+          }
         }
       }
     });
@@ -592,15 +671,32 @@ export const pdfLibService = {
       let x = width - margin - textWidth;
       let y = margin;
 
-      if (options.position === 'top-right') {
-        x = width - margin - textWidth;
-        y = height - margin;
-      } else if (options.position === 'bottom-left') {
-        x = margin;
-        y = margin;
-      } else if (options.position === 'bottom-center') {
-        x = (width - textWidth) / 2;
-        y = margin;
+      switch (options.position) {
+        case 'top-left':
+          x = margin;
+          y = height - margin;
+          break;
+        case 'top-center':
+          x = (width - textWidth) / 2;
+          y = height - margin;
+          break;
+        case 'top-right':
+          x = width - margin - textWidth;
+          y = height - margin;
+          break;
+        case 'bottom-left':
+          x = margin;
+          y = margin;
+          break;
+        case 'bottom-center':
+          x = (width - textWidth) / 2;
+          y = margin;
+          break;
+        case 'bottom-right':
+        default:
+          x = width - margin - textWidth;
+          y = margin;
+          break;
       }
 
       page.drawText(batesCode, {

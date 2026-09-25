@@ -262,6 +262,10 @@ export const WatermarkView: React.FC = () => {
   const [rotation, setRotation] = useState('45');
   const [color, setColor] = useState('#ef4444');
   const [fontSize, setFontSize] = useState('48');
+  const [repeat, setRepeat] = useState(false);
+  const [repeatSpacing, setRepeatSpacing] = useState('150');
+  const [position, setPosition] = useState<'center' | 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'>('center');
+  const [fontFamily, setFontFamily] = useState<'helvetica-bold' | 'helvetica' | 'courier' | 'times-roman'>('helvetica-bold');
   const [processing, setProcessing] = useState(false);
   const [outputBytes, setOutputBytes] = useState<Uint8Array | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -277,6 +281,7 @@ export const WatermarkView: React.FC = () => {
   const handleApply = async () => {
     if (!file?.buffer) return;
     setProcessing(true);
+    setError(null);
     try {
       const res = await pdfLibService.addWatermark(file.buffer, {
         text,
@@ -284,6 +289,10 @@ export const WatermarkView: React.FC = () => {
         rotation: parseInt(rotation, 10),
         fontSize: parseInt(fontSize, 10),
         color,
+        repeat,
+        repeatSpacing: parseInt(repeatSpacing, 10) || 150,
+        position,
+        fontFamily,
       });
       setOutputBytes(res);
     } catch (e: any) {
@@ -301,7 +310,7 @@ export const WatermarkView: React.FC = () => {
           Add Watermark
         </h2>
         <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Apply customized text or stamp watermarks across all document pages.
+          Apply customized text, repeated tiled patterns, or stamp watermarks across all document pages.
         </p>
       </div>
 
@@ -309,6 +318,11 @@ export const WatermarkView: React.FC = () => {
         <FileDropzone onFilesSelected={handleFileSelected} title="Drop PDF to add watermark" />
       ) : (
         <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+          <div className="flex items-center justify-between text-xs text-slate-500 pb-2 border-b border-slate-100 dark:border-slate-800">
+            <span>Document: <strong>{file.name}</strong></span>
+            <button onClick={() => { setFile(null); setOutputBytes(null); }} className="text-brand-600 hover:underline">Change</button>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Watermark Text
@@ -318,7 +332,79 @@ export const WatermarkView: React.FC = () => {
               value={text}
               onChange={(e) => setText(e.target.value)}
               className="w-full text-sm rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2"
+              placeholder="e.g. CONFIDENTIAL, DRAFT, SAMPLE"
             />
+          </div>
+
+          {/* Repeat / Tile Watermark Option */}
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <input
+                type="checkbox"
+                checked={repeat}
+                onChange={(e) => setRepeat(e.target.checked)}
+                className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500"
+              />
+              <span>Repeat / Tile Watermark Across Entire Page</span>
+            </label>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 pl-6.5">
+              Grid pattern repeats the watermark seamlessly over every page for maximum security and theft prevention.
+            </p>
+
+            {repeat && (
+              <div className="pt-2 pl-6.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Tile Spacing ({repeatSpacing} px)
+                </label>
+                <input
+                  type="range"
+                  min="50"
+                  max="400"
+                  step="25"
+                  value={repeatSpacing}
+                  onChange={(e) => setRepeatSpacing(e.target.value)}
+                  className="w-full max-w-xs"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Position & Font Family */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Position
+              </label>
+              <select
+                disabled={repeat}
+                value={position}
+                onChange={(e) => setPosition(e.target.value as any)}
+                className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 disabled:opacity-50"
+              >
+                <option value="center">Center</option>
+                <option value="top-left">Top Left</option>
+                <option value="top-center">Top Center</option>
+                <option value="top-right">Top Right</option>
+                <option value="bottom-left">Bottom Left</option>
+                <option value="bottom-center">Bottom Center</option>
+                <option value="bottom-right">Bottom Right</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Font Family
+              </label>
+              <select
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value as any)}
+                className="w-full text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2"
+              >
+                <option value="helvetica-bold">Helvetica Bold</option>
+                <option value="helvetica">Helvetica Regular</option>
+                <option value="courier">Courier Typewriter</option>
+                <option value="times-roman">Times Roman</option>
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -343,7 +429,7 @@ export const WatermarkView: React.FC = () => {
               <input
                 type="range"
                 min="0"
-                max="90"
+                max="360"
                 step="15"
                 value={rotation}
                 onChange={(e) => setRotation(e.target.value)}
@@ -370,12 +456,20 @@ export const WatermarkView: React.FC = () => {
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Watermark Color
               </label>
-              <input
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-full h-9 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="w-12 h-9 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer p-0.5"
+                />
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="flex-1 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 font-mono"
+                />
+              </div>
             </div>
           </div>
 

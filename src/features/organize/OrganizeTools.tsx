@@ -216,6 +216,11 @@ export const SplitByTextView: React.FC = () => {
 
       // Group ranges around matching pages
       const ranges: number[][] = [];
+      if (matchingPages[0] > 1) {
+        const prePages: number[] = [];
+        for (let p = 1; p < matchingPages[0]; p++) prePages.push(p);
+        ranges.push(prePages);
+      }
       for (let i = 0; i < matchingPages.length; i++) {
         const start = matchingPages[i];
         const nextMatch = matchingPages[i + 1];
@@ -392,14 +397,35 @@ export const SplitByBookmarksView: React.FC = () => {
       const doc = await pdfJsService.loadDocument(file.buffer);
       const totalPages = doc.numPages;
 
+      // Sort and group bookmarks with distinct start pages
+      const sortedBookmarks = [...bookmarks]
+        .filter((b) => b.pageNumber >= 1 && b.pageNumber <= totalPages)
+        .sort((a, b) => a.pageNumber - b.pageNumber);
+
+      const uniqueBookmarks: { title: string; startPage: number }[] = [];
+      for (const bm of sortedBookmarks) {
+        const last = uniqueBookmarks[uniqueBookmarks.length - 1];
+        if (!last || last.startPage !== bm.pageNumber) {
+          uniqueBookmarks.push({ title: bm.title, startPage: bm.pageNumber });
+        }
+      }
+
+      if (uniqueBookmarks.length > 0 && uniqueBookmarks[0].startPage > 1) {
+        uniqueBookmarks.unshift({ title: 'Frontmatter', startPage: 1 });
+      }
+
       const ranges: number[][] = [];
-      for (let i = 0; i < bookmarks.length; i++) {
-        const start = bookmarks[i].pageNumber;
-        const nextBm = bookmarks[i + 1];
-        const end = nextBm ? nextBm.pageNumber - 1 : totalPages;
-        const list: number[] = [];
-        for (let p = start; p <= end; p++) list.push(p);
-        if (list.length > 0) ranges.push(list);
+      const partTitles: string[] = [];
+
+      for (let i = 0; i < uniqueBookmarks.length; i++) {
+        const start = uniqueBookmarks[i].startPage;
+        const end = i + 1 < uniqueBookmarks.length ? uniqueBookmarks[i + 1].startPage - 1 : totalPages;
+        if (end >= start) {
+          const list: number[] = [];
+          for (let p = start; p <= end; p++) list.push(p);
+          ranges.push(list);
+          partTitles.push(uniqueBookmarks[i].title);
+        }
       }
 
       const splitData = await pdfLibService.splitPDF(file.buffer, ranges, (pct, msg) => {
@@ -408,7 +434,7 @@ export const SplitByBookmarksView: React.FC = () => {
       });
 
       const downloadItems: DownloadItem[] = splitData.map((d, i) => {
-        const titleSafe = (bookmarks[i]?.title || `Chapter_${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+        const titleSafe = (partTitles[i] || `Chapter_${i + 1}`).replace(/[^a-zA-Z0-9_-]/g, '_');
         return {
           filename: `${titleSafe}.pdf`,
           blob: new Blob([d.data as any], { type: 'application/pdf' }),
