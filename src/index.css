@@ -1,0 +1,79 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+:root {
+  --color-bg-subtle: #f8fafc;
+  --color-border: #e2e8f0;
+}
+
+.dark {
+  --color-bg-subtle: #0f172a;
+  --color-border: #334155;
+}
+
+body {
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.4);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Subtle pattern for dropzones & canvas backgrounds */
+.bg-grid-pattern {
+  background-size: 20px 20px;
+  background-image: radial-gradient(circle, rgba(148, 163, 184, 0.25) 1px, transparent 1px);
+}
+
+.dark .bg-grid-pattern {
+  background-image: radial-gradient(circle, rgba(100, 116, 139, 0.25) 1px, transparent 1px);
+}
+
+/* Paper lined texture for handwriting / notebook */
+.bg-lined-paper {
+  background-size: 100% 28px;
+  background-image: linear-gradient(to bottom, transparent 27px, #e2e8f0 27px);
+}
+
+.dark .bg-lined-paper {
+  background-image: linear-gradient(to bottom, transparent 27px, #334155 27px);
+}
+
+/* Custom range slider styling */
+input[type="range"] {
+  accent-color: #ef4444;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
