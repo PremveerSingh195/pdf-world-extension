@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PDF Toolbox - All-in-One PDF Editor & Workspace",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Complete client-side PDF editor, converter, organizer, and visual workflow automation toolbox.",
   "permissions": [
     "storage",
@@ -26,16 +26,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "pdf.worker.min.js",
-        "icons/*",
-        "app.html"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
-  ]
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  }
 }

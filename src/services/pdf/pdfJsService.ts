@@ -8,6 +8,7 @@ if (typeof window !== 'undefined') {
     pdfjsLib.GlobalWorkerOptions.workerSrc = isExtension
       ? chrome.runtime.getURL('pdf.worker.min.js')
       : '/pdf.worker.min.js';
+    (pdfjsLib.GlobalWorkerOptions as any).isEvalSupported = false;
   } catch (e) {
     console.warn('Could not set pdfjs workerSrc:', e);
   }

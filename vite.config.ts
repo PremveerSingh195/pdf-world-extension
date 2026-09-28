@@ -2,9 +2,24 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+function removeEvalPlugin() {
+  return {
+    name: 'remove-eval-plugin',
+    transform(code: string, id: string) {
+      if (code.includes('eval(')) {
+        return {
+          code: code.replace(/eval\(["']require["']\)/g, 'undefined'),
+          map: null,
+        };
+      }
+      return null;
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), removeEvalPlugin()],
   resolve: {
     alias: {
       '@': resolve(import.meta.dirname, './src'),

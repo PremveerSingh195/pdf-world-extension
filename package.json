@@ -1,11 +1,12 @@
 {
   "name": "pdf-world",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "package": "npm run build && rm -f extension.zip && (cd dist && zip -q -r ../extension.zip .)",
     "preview": "vite preview",
     "test": "vitest run"
   },
